@@ -87,12 +87,6 @@ pip install -r requirements.txt
 streamlit run app.py
 ```
 
-If you are using the shared workspace virtual environment:
-
-```bash
-C:\Users\rsamsami\Documents\Playground\.venv\Scripts\python.exe -m streamlit run app.py
-```
-
 On first run, the app downloads the official FHWA bridge file and builds a processed cache locally.
 
 ## Repo Structure
