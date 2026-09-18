@@ -11,6 +11,7 @@ from src.modeling import (
     export_tree_rules,
     get_confusion,
     get_feature_importance,
+    LEAKING_FEATURES,
     get_pipeline,
     score_state_bridges,
 )
@@ -254,6 +255,14 @@ with intro_left:
             <strong>Target label logic.</strong> A bridge is marked <em>Priority Review</em> when it is already poor,
             has low condition under heavier traffic, or shows weak structural evaluation. That keeps the target grounded
             in inspection reality while still giving the model a meaningful triage problem to learn.
+            <br><br>
+            <strong>Why four ratings are excluded from the model.</strong> That rule is built from the condition
+            ratings and the structural evaluation, so feeding those back in as features leaks the label &mdash; the
+            model would simply re-derive its own target. With them included the decision tree scored
+            <strong>0.995 accuracy</strong>, which measured nothing.
+            <code>structural_evaluation &le; 4</code> alone recovers 67.5% of positives.
+            They are excluded here, so the models predict priority from age, traffic, geometry, load rating, design
+            and location instead. The honest numbers are in the Model Lab tab.
         </div>
         """,
         unsafe_allow_html=True,
@@ -290,6 +299,15 @@ with overview_tab:
 
 with models_tab:
     st.markdown("### Holdout model comparison")
+    st.info(
+        "**Leakage audit.** These scores exclude "
+        f"`{'`, `'.join(LEAKING_FEATURES)}` from the feature set. "
+        "The `priority_review` label is constructed from those ratings, so including them let the "
+        "decision tree reach 0.995 accuracy by re-deriving its own target. The numbers below are what "
+        "the models achieve predicting priority from age, traffic, geometry, load rating, design and "
+        "location — no label inputs.",
+        icon=":material/policy:",
+    )
     st.dataframe(
         model_bundle.metrics.assign(
             accuracy=lambda df: df["accuracy"].round(3),

@@ -17,6 +17,20 @@ from src.constants import MODEL_SAMPLE_LIMIT, SCORING_BATCH_SIZE
 TARGET_COLUMN = "priority_review"
 DISPLAY_TARGET_COLUMN = "priority_label"
 
+# Excluded deliberately: `priority_review` is derived in src/data.py from the
+# condition ratings and structural evaluation, so handing those back to the model
+# leaks the label. With them included the decision tree scored 0.995 accuracy —
+# it was re-deriving its own target, not predicting anything. The term
+# `structural_evaluation <= 4` alone recovers 67.5% of all positives.
+#
+# Kept out of MODEL_FEATURES but still shown in the Bridge Explorer as context.
+LEAKING_FEATURES = [
+    "structural_evaluation",
+    "deck",
+    "superstructure",
+    "substructure",
+]
+
 NUMERIC_FEATURES = [
     "bridge_age",
     "lanes_on_structure",
@@ -29,11 +43,7 @@ NUMERIC_FEATURES = [
     "structure_length",
     "bridge_roadway_width",
     "deck_width",
-    "deck",
-    "superstructure",
-    "substructure",
     "operating_rating",
-    "structural_evaluation",
     "designated_inspection_frequency",
     "deck_area",
 ]
