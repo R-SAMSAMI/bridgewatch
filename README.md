@@ -6,7 +6,7 @@ Interactive infrastructure analytics dashboard for triaging bridge inspection pr
 
 ![BridgeWatch demo](assets/media/demo-preview.gif)
 
-Full recording: [View the demo video](assets/media/demo-recording.mp4)
+Full recording (64s, 1.4 MB): [View the demo video](assets/media/demo-recording.mp4)
 
 ## Overview
 
@@ -55,7 +55,10 @@ Holdout performance without them, on a class-balanced 60,000-bridge sample:
 | model | accuracy | precision | recall | F1 |
 | --- | --- | --- | --- | --- |
 | Decision Tree | 0.816 | 0.866 | 0.747 | 0.802 |
-| Random Forest | 0.830 | 0.827 | 0.835 | 0.831 |
+| Random Forest | 0.831 | 0.829 | 0.833 | 0.831 |
+
+These are the figures the deployed app reports; expect third-decimal drift across
+scikit-learn versions.
 
 ## Inputs
 
@@ -85,9 +88,15 @@ withheld from the models — see the leakage audit above.
 
 ![Model lab](assets/screenshots/model-lab.png)
 
-### Tree Rules
+### Feature Importance
 
-![Tree rules](assets/screenshots/tree-rules.png)
+![Random Forest feature importance](assets/screenshots/feature-importance.png)
+
+With the four rating features removed, importance falls on `operating_rating`,
+`bridge_age`, `design_load` and `designated_inspection_frequency` — load capacity,
+age and inspection cadence rather than a restatement of the label. Selecting the
+Decision Tree in the same tab swaps this chart for the printed rule path; the demo
+recording above walks through it.
 
 ### Bridge Explorer
 
@@ -118,8 +127,8 @@ pip install -r requirements.txt
 streamlit run app.py
 ```
 
-The committed Parquet snapshot means no download is needed. Peak memory is ~761 MB, inside
-Streamlit Community Cloud's 1 GB ceiling; cold start is ~11s.
+The committed Parquet snapshot means no download is needed. Peak memory is ~701 MB, inside
+Streamlit Community Cloud's 1 GB ceiling; cold start is ~13s.
 
 ## Repo Structure
 

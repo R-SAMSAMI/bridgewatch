@@ -409,6 +409,7 @@ with explorer_tab:
         )
 
 st.caption(
-    f"Bridge data source: FHWA National Bridge Inventory {FHWA_YEAR}. "
-    f"First run downloads the official file from {FHWA_DOWNLOAD_URL} and caches a processed subset locally."
+    f"Bridge data source: FHWA National Bridge Inventory {FHWA_YEAR}, loaded from a committed "
+    f"dtype-optimised Parquet snapshot of all 469,434 bridges. Rebuild it from the official file "
+    f"at {FHWA_DOWNLOAD_URL} with `python -m src.data`."
 )
