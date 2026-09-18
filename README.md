@@ -2,6 +2,10 @@
 
 Interactive infrastructure analytics dashboard for triaging bridge inspection priority across the U.S. bridge inventory.
 
+**[Open the live app](https://rei-bridgewatch.streamlit.app/)** - all 469,434 bridges, no setup.
+
+[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://rei-bridgewatch.streamlit.app/)
+
 ## Demo
 
 ![BridgeWatch demo](assets/media/demo-preview.gif)
@@ -128,7 +132,9 @@ streamlit run app.py
 ```
 
 The committed Parquet snapshot means no download is needed. Peak memory is ~701 MB, inside
-Streamlit Community Cloud's 1 GB ceiling; cold start is ~13s.
+Streamlit Community Cloud's 1 GB ceiling; cold start is ~13s. The hosted build at
+[rei-bridgewatch.streamlit.app](https://rei-bridgewatch.streamlit.app/) runs from this same
+branch.
 
 ## Repo Structure
 
