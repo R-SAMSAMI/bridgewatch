@@ -12,6 +12,7 @@ from src.constants import (
     DATA_DIR,
     FWF_FIELDS,
     FHWA_DOWNLOAD_URL,
+    PARQUET_DATA_PATH,
     PROCESSED_DATA_PATH,
     PROCESSED_DIR,
     RAW_DIR,
@@ -28,6 +29,15 @@ def ensure_directories() -> None:
 
 def load_bridgewatch_data(force_refresh: bool = False) -> pd.DataFrame:
     ensure_directories()
+
+    # Fast path: the committed Parquet snapshot. ~0.2s and ~68 MB resident,
+    # versus ~68s and well over 1 GB for download + fixed-width parse.
+    if PARQUET_DATA_PATH.exists() and not force_refresh:
+        try:
+            return pd.read_parquet(PARQUET_DATA_PATH)
+        except Exception:
+            pass
+
     if PROCESSED_DATA_PATH.exists() and not force_refresh:
         try:
             return pd.read_csv(PROCESSED_DATA_PATH, low_memory=False)
@@ -38,15 +48,54 @@ def load_bridgewatch_data(force_refresh: bool = False) -> pd.DataFrame:
     frame = _parse_fixed_width_zip(raw_zip)
     frame = _prepare_bridgewatch_dataset(frame)
 
-    temp_output = PROCESSED_DIR / "bridgewatch_2025_processed.tmp.csv.gz"
+    frame = optimise_dtypes(frame)
+
+    temp_output = PROCESSED_DIR / "bridgewatch_2025.tmp.parquet"
     try:
-        frame.to_csv(temp_output, index=False, compression="gzip")
-        temp_output.replace(PROCESSED_DATA_PATH)
+        frame.to_parquet(temp_output, index=False, compression="zstd")
+        temp_output.replace(PARQUET_DATA_PATH)
     except Exception:
         # If Windows is still holding the previous cache file open, keep serving
         # the rebuilt in-memory frame instead of failing the whole app.
         temp_output.unlink(missing_ok=True)
     return frame
+
+
+def optimise_dtypes(frame: pd.DataFrame) -> pd.DataFrame:
+    """Shrink the prepared frame from ~174 MB to ~68 MB resident.
+
+    Low-cardinality text becomes categorical; floats and ints are downcast to the
+    narrowest safe width. Identifier columns stay as free text.
+    """
+    optimised = frame.copy()
+    identifier_columns = {"structure_number", "bridge_id"}
+
+    for column in optimised.columns:
+        series = optimised[column]
+        if series.dtype == "object" or pd.api.types.is_string_dtype(series):
+            if column in identifier_columns:
+                continue
+            if series.nunique(dropna=True) <= 2000:
+                optimised[column] = series.astype("category")
+        elif pd.api.types.is_float_dtype(series):
+            optimised[column] = pd.to_numeric(series, downcast="float")
+        elif pd.api.types.is_integer_dtype(series):
+            optimised[column] = pd.to_numeric(series, downcast="integer")
+
+    return optimised
+
+
+def build_parquet_snapshot(*, force_refresh: bool = True) -> Path:
+    """Regenerate the committed Parquet snapshot from the official FHWA release.
+
+    Run this when a new NBI year is published, then commit the result:
+        python -m src.data
+    """
+    ensure_directories()
+    raw_zip = _ensure_raw_zip(force_refresh=force_refresh)
+    frame = optimise_dtypes(_prepare_bridgewatch_dataset(_parse_fixed_width_zip(raw_zip)))
+    frame.to_parquet(PARQUET_DATA_PATH, index=False, compression="zstd")
+    return PARQUET_DATA_PATH
 
 
 def _ensure_raw_zip(*, force_refresh: bool) -> Path:
@@ -182,3 +231,9 @@ def _prepare_bridgewatch_dataset(frame: pd.DataFrame) -> pd.DataFrame:
         + cleaned["structure_number"].fillna("Unknown")
     )
     return cleaned.reset_index(drop=True)
+
+
+if __name__ == "__main__":  # pragma: no cover
+    path = build_parquet_snapshot()
+    size_mb = path.stat().st_size / 1e6
+    print(f"Wrote {path} ({size_mb:.2f} MB)")

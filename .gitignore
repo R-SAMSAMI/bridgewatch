@@ -3,5 +3,8 @@ __pycache__/
 .pytest_cache/
 .streamlit/
 data/raw/
-data/processed/
+# The dtype-optimised Parquet snapshot is committed so the deployed app never
+# downloads or fixed-width-parses the 53 MB FHWA file at runtime.
+data/processed/*
+!data/processed/bridgewatch_2025.parquet
 *.pyc

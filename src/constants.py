@@ -11,9 +11,16 @@ FHWA_YEAR = 2025
 FHWA_DOWNLOAD_URL = "https://www.fhwa.dot.gov/bridge/nbi/2025hwybronefilenodel.zip"
 RAW_ZIP_PATH = RAW_DIR / "fhwa_nbi_2025_all_states.zip"
 PROCESSED_DATA_PATH = PROCESSED_DIR / "bridgewatch_2025_processed.csv.gz"
+# Committed, dtype-optimised snapshot. Loading this avoids downloading and
+# fixed-width-parsing the 53 MB FHWA file at runtime, which is what pushed the
+# app past Streamlit Community Cloud's 1 GB memory ceiling.
+PARQUET_DATA_PATH = PROCESSED_DIR / "bridgewatch_2025.parquet"
 
 REFERENCE_YEAR = 2025
-MODEL_SAMPLE_LIMIT = 120_000
+MODEL_SAMPLE_LIMIT = 60_000
+# Rows scored per batch in score_state_bridges. One-hot encoding the full
+# 469k-row national view in a single call allocates ~640 MB; batching bounds it.
+SCORING_BATCH_SIZE = 50_000
 
 STATE_CODE_TO_NAME = {
     "01": "Alabama",

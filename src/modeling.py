@@ -12,7 +12,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.tree import DecisionTreeClassifier, export_text
 
-from src.constants import MODEL_SAMPLE_LIMIT
+from src.constants import MODEL_SAMPLE_LIMIT, SCORING_BATCH_SIZE
 
 TARGET_COLUMN = "priority_review"
 DISPLAY_TARGET_COLUMN = "priority_label"
@@ -209,10 +209,34 @@ def export_tree_rules(model: Pipeline) -> str:
 
 def score_state_bridges(model: Pipeline, frame: pd.DataFrame) -> pd.DataFrame:
     scored = frame.copy()
-    probabilities = model.predict_proba(scored[MODEL_FEATURES])[:, 1]
-    scored["priority_probability"] = probabilities
-    scored["predicted_priority"] = np.where(probabilities >= 0.5, "Priority Review", "Routine Review")
+    scored["priority_probability"] = _predict_proba_batched(model, scored)
+    scored["predicted_priority"] = np.where(
+        scored["priority_probability"] >= 0.5, "Priority Review", "Routine Review"
+    )
     return scored.sort_values("priority_probability", ascending=False).reset_index(drop=True)
+
+
+def _predict_proba_batched(model: Pipeline, frame: pd.DataFrame) -> np.ndarray:
+    """Score in fixed-size batches so the one-hot matrix never materialises whole.
+
+    The national view is ~469k rows and the encoder produces ~170 columns, so a
+    single predict_proba call allocates roughly 640 MB of float64 — on its own
+    more than half of Streamlit Community Cloud's 1 GB ceiling. Batching caps
+    that at SCORING_BATCH_SIZE rows and leaves the output identical.
+    """
+    row_count = len(frame)
+    if row_count == 0:
+        return np.empty(0, dtype=float)
+
+    features = frame[MODEL_FEATURES]
+    if row_count <= SCORING_BATCH_SIZE:
+        return model.predict_proba(features)[:, 1]
+
+    probabilities = np.empty(row_count, dtype=float)
+    for start in range(0, row_count, SCORING_BATCH_SIZE):
+        stop = min(start + SCORING_BATCH_SIZE, row_count)
+        probabilities[start:stop] = model.predict_proba(features.iloc[start:stop])[:, 1]
+    return probabilities
 
 
 def explain_tree_prediction(model: Pipeline, row: pd.Series) -> list[str]:
